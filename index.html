@@ -217,7 +217,12 @@ P[0].meta.t="LeadzSoft | SEO, Web, Software & AI Services";P[0].meta.k="digital 
 return {v:CV,site:{domain:DOM,email:"services@leadzsoft.co",phone:"+92 334 5206127",address:"",logo:LOGO,flogo:"",fav:FAV,about:"Your digital business partner. We help brands grow with strategy, technology and creative ideas.",copy:"© 2026 LeadzSoft. All rights reserved.",nav:[{l:"Home",u:"#/",dd:""},{l:"About Us",u:"#/about",dd:""},{l:"Services",u:"#/services",dd:"service"},{l:"Industries",u:"#/industries",dd:""},{l:"Blog",u:"#/blog",dd:""},{l:"Contact Us",u:"#/contact",dd:""}],social:[{n:"Facebook",u:"https://www.facebook.com/leadztechnologies",i:"fb"},{n:"LinkedIn",u:"https://www.linkedin.com/company/leadz-tech/",i:"in"},{n:"Instagram",u:"https://www.instagram.com/leadzsoft/",i:"ig"},{n:"Website",u:"https://share.google/WpDw9X59UAcCe1Xdw",i:"link"}],fcom:[{l:"About Us",u:"#/about"},{l:"Industries",u:"#/industries"},{l:"Blog",u:"#/blog"},{l:"Contact Us",u:"#/contact"}],fleg:[{l:"Privacy Policy",u:"#/privacy-policy"},{l:"Terms & Conditions",u:"#/terms-conditions"}]},pages:P}}
 var DB,app=$("#app"),AD={sel:"site",tab:"c"},curTitle="",curId="home";
 function load(){try{var s=localStorage.getItem("lz_cms");if(s){var d=JSON.parse(s);if(d&&d.v==CV&&d.pages)return d}}catch(e){}return seed()}
-function save(){try{localStorage.setItem("lz_cms",JSON.stringify(DB));return true}catch(e){return false}}
+var UP={},pt;
+async function push(){var t=sessionStorage.getItem("lzadm");if(!t)return "Not logged in";try{var j=JSON.stringify(DB),m=j.match(/data:image\/[a-z+.-]+;base64,[A-Za-z0-9+\/=]+/g)||[];
+for(var i=0;i<m.length;i++){var d=m[i],id=UP[d];if(!id){id=(await sha(d)).slice(0,40);var r=await fetch("/api/img?id="+id,{method:"POST",headers:{Authorization:"Bearer "+t,"Content-Type":"text/plain"},body:d});if(!r.ok){var x=await r.json().catch(function(){return{}});return x.error||"Image upload failed"}UP[d]=id}j=j.split(d).join("/api/img?id="+id)}
+var r2=await fetch("/api/content",{method:"POST",headers:{Authorization:"Bearer "+t,"Content-Type":"text/plain"},body:j});if(!r2.ok){var y=await r2.json().catch(function(){return{}});return y.error||"Publish failed"}return ""}catch(e){return "Cannot reach server"}}
+function pushSoon(){if(!sessionStorage.getItem("lzadm"))return;clearTimeout(pt);pt=setTimeout(function(){push().then(function(er){var e=$("#sv");if(e){e.textContent=er?"Saved here, not live: "+er:"Saved & live ✓";e.className=er?"bad":""}})},1200)}
+function save(){pushSoon();try{localStorage.setItem("lz_cms",JSON.stringify(DB));return true}catch(e){return false}}
 function gp(o,p){return String(p).split(".").reduce(function(a,k){return a==null?a:a[k]},o)}
 function pgs(t){return DB.pages.filter(function(p){return p.type==t})}
 function hd(l,t,c){l=l||2;return '<h'+l+' class="'+c+'">'+esc(t)+'</h'+l+'>'}
@@ -344,7 +349,7 @@ if(!tk){form();return}
 fetch("/api/login",{headers:{Authorization:"Bearer "+tk}}).then(function(r){if(r.ok)adminUI();else{sessionStorage.removeItem("lzadm");form("Session expired. Please log in again.")}}).catch(function(){sessionStorage.removeItem("lzadm");form()})}
 async function sha(s){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 function adminUI(){var G=[["Pages","page"],["Services","service"],["Industries","industry"],["Blog posts","post"],["Legal","legal"]];
-var side='<div class="abh">LeadzSoft CMS</div><button class="ai'+(AD.sel=="site"?" on":"")+'" data-sel="site">⚙ Site, header &amp; footer</button>'+G.map(function(g){return '<div class="ag">'+g[0]+'</div>'+pgs(g[1]).map(function(p){return '<button class="ai'+(AD.sel==p.id?" on":"")+'" data-sel="'+p.id+'">'+esc(p.nav||p.title)+'</button>'}).join("")}).join("")+'<div class="ag">Tools</div><button class="ai" data-act="newp">+ New page</button><button class="ai" data-act="export">Export JSON</button><button class="ai" data-act="import">Import JSON</button><button class="ai" data-act="reset">Reset to defaults</button><a class="ai" href="#/">← View website</a><button class="ai" data-act="logout">Log out</button>';
+var side='<div class="abh">LeadzSoft CMS</div><button class="ai'+(AD.sel=="site"?" on":"")+'" data-sel="site">⚙ Site, header &amp; footer</button>'+G.map(function(g){return '<div class="ag">'+g[0]+'</div>'+pgs(g[1]).map(function(p){return '<button class="ai'+(AD.sel==p.id?" on":"")+'" data-sel="'+p.id+'">'+esc(p.nav||p.title)+'</button>'}).join("")}).join("")+'<div class="ag">Tools</div><button class="ai" data-act="newp">+ New page</button><button class="ai" data-act="publish">⬆ Publish to live site</button><button class="ai" data-act="export">Export JSON</button><button class="ai" data-act="import">Import JSON</button><button class="ai" data-act="reset">Reset to defaults</button><a class="ai" href="#/">← View website</a><button class="ai" data-act="logout">Log out</button>';
 app.innerHTML='<div class="adm"><aside class="ab">'+side+'</aside><main class="am" id="am"></main></div><datalist id="pgl">'+DB.pages.map(function(p){return '<option value="#/'+p.path+'">'+esc(p.nav)+'</option>'}).join("")+'</datalist>';
 if(AD.sel!="site"&&!root())AD.sel="site";editor();window.scrollTo(0,0)}
 function editor(){var am=$("#am"),r=root(),y=am.parentNode.parentNode?window.scrollY:0,h;
@@ -365,6 +370,7 @@ if(d.f)document.execCommand("formatBlock",false,d.f);else if(d.c=="ext"){var u=b
 if(d.sel){AD.sel=d.sel;AD.tab="c";adminUI();return}if(d.tab){AD.tab=d.tab;editor();return}
 var a=d.act;if(!a)return;var r=root();
 var conf=function(){if(t.dataset.c){return true}t.dataset.c=1;var o=t.textContent;t.textContent="Sure?";setTimeout(function(){t.textContent=o;delete t.dataset.c},2500);return false};
+if(a=="publish"){t.textContent="Publishing…";push().then(function(er){t.textContent=er?"✕ "+er:"✓ Published live";setTimeout(function(){t.textContent="⬆ Publish to live site"},4000)});return}
 if(a=="logout"){sessionStorage.removeItem("lzadm");nav("/");return}
 if(a=="reset"){if(!conf())return;localStorage.removeItem("lz_cms");DB=seed();save();AD.sel="site";adminUI();return}
 if(a=="export"||a=="import"){var m=document.createElement("div");m.className="md";m.innerHTML='<div class="mdb"><h3>'+(a=="export"?"Export (copy this JSON)":"Import (paste JSON)")+'</h3><textarea id="mj" rows="14">'+(a=="export"?esc(JSON.stringify(DB)):"")+'</textarea><div class="ac2"><button class="ad" data-act="'+(a=="export"?"mclose":"mapply")+'">'+(a=="export"?"Close":"Apply import")+'</button>'+(a=="import"?'<button class="ad" data-act="mclose">Cancel</button>':"")+'</div><p id="mm"></p></div>';document.body.appendChild(m);if(a=="export")$("#mj").select();return}
@@ -393,5 +399,5 @@ new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(fu
 document.addEventListener("click",function(e){if(e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target.closest&&e.target.closest("a[href]");if(!a||a.target||a.hasAttribute("download"))return;var h=a.getAttribute("href");if(h.charAt(0)=="/"&&h.charAt(1)!="/"){e.preventDefault();nav(h)}else if(h.slice(0,2)=="#/"){e.preventDefault();nav(h.slice(1))}});
 window.addEventListener("popstate",go);
 if(location.hash.indexOf("#/")==0)history.replaceState(null,"",location.hash.slice(1));
-go();
+fetch("/api/content",{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.v==CV&&d.pages)DB=d}).catch(function(){}).then(go);
 </script></body></html>
