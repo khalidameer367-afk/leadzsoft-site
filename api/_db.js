@@ -1,9 +1,29 @@
-const U = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const T = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-exports.cmd = async (a) => {
-  if (!U || !T) throw new Error("Database not connected (add Upstash Redis in Vercel Storage)");
-  const r = await fetch(U, { method: "POST", headers: { Authorization: "Bearer " + T }, body: JSON.stringify(a) });
-  const j = await r.json();
-  if (j.error) throw new Error(j.error);
-  return j.result;
+const U = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+const K = process.env.SUPABASE_SERVICE_KEY || "";
+
+const h = () => {
+  const x = { apikey: K, "Content-Type": "application/json" };
+  if (K.startsWith("eyJ")) x.Authorization = "Bearer " + K;
+  return x;
+};
+const need = () => {
+  if (!U || !K) throw new Error("Database not connected (add SUPABASE_URL and SUPABASE_SERVICE_KEY in Vercel)");
+};
+
+exports.get = async (key) => {
+  need();
+  const r = await fetch(`${U}/rest/v1/lz_store?key=eq.${encodeURIComponent(key)}&select=value`, { headers: h() });
+  if (!r.ok) throw new Error("Supabase read failed: " + (await r.text()).slice(0, 120));
+  const a = await r.json();
+  return a[0] ? a[0].value : null;
+};
+
+exports.set = async (key, value) => {
+  need();
+  const r = await fetch(`${U}/rest/v1/lz_store?on_conflict=key`, {
+    method: "POST",
+    headers: { ...h(), Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+  });
+  if (!r.ok) throw new Error("Supabase save failed: " + (await r.text()).slice(0, 120));
 };
