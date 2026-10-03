@@ -276,7 +276,7 @@ var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isInter
 var co=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;co.unobserve(e.target);var n=+e.target.dataset.n,s=e.target.dataset.s,st=null;
 function f(t){st=st||t;var p=Math.min((t-st)/1400,1);e.target.textContent=Math.round(n*(1-Math.pow(1-p,3)))+s;if(p<1)requestAnimationFrame(f)}requestAnimationFrame(f)})});
 
-function go(){var p=location.hash.replace(/^#\/?/,"").replace(/\/$/,"");
+function go(){var p=location.pathname.replace(/^\/+/,"").replace(/\/$/,"").replace(/^index\.html$/,"");
 if(p=="admin"){document.body.classList.add("isadm");adminRoute();return}
 document.body.classList.remove("isadm");
 var pg=DB.pages.filter(function(x){return x.path==p})[0];
@@ -285,7 +285,7 @@ curTitle=pg.title;curId=pg.id;
 app.style.animation="none";app.offsetHeight;app.style.animation="";
 app.innerHTML=pg.blocks.map(function(b){return (RB[b.k]||function(){return ""})(b,pg)}).join("");
 window.scrollTo(0,0);hdr();ftr();
-document.querySelectorAll("#nv a").forEach(function(a){var h=a.getAttribute("href").replace("#/","");a.classList.toggle("on",h==""?p=="":(p==h||p.indexOf(h+"/")==0))});
+document.querySelectorAll("#nv a").forEach(function(a){var h=a.getAttribute("href").replace(/^#?\//,"");a.classList.toggle("on",h==""?p=="":(p==h||p.indexOf(h+"/")==0))});
 metaApply(pg);
 document.querySelectorAll(".rv").forEach(function(e){io.observe(e)});
 var f=$("#f");if(f)f.onsubmit=function(e){e.preventDefault();var d=new FormData(f);location.href="mailto:"+DB.site.email+"?subject="+encodeURIComponent("Enquiry from "+d.get("n"));$("#ok").textContent="Thanks! Your email app should open to send this."};
@@ -336,11 +336,12 @@ for(var i=0;i<pg.blocks.length;i++){var b=pg.blocks[i];if(b.k=="text"||b.k=="pos
 var has=function(s){return k&&String(s||"").toLowerCase().indexOf(k)>-1},t=(m.t||"").length,d=(m.d||"").length,js=JSON.stringify(pg.blocks);
 var rows=[[t>=30&&t<=60,"SEO title length "+t+" (aim 30 to 60)"],[d>=70&&d<=160,"Meta description length "+d+" (aim 70 to 160)"],[!!k,"Focus keyword set"],[has(m.t),"Keyword in SEO title"],[has(m.d),"Keyword in meta description"],[has(h1),"Keyword in main heading"],[has(fp.slice(0,300)),"Keyword in first paragraph"],[has((pg.url||"").replace(/-/g," ")),"Keyword in URL"],[js.indexOf('href=\\"#/')>-1||js.indexOf('"u":"#/')>-1,"Has an internal link"]];
 var e=$("#seochk");if(e)e.innerHTML=rows.map(function(r){return '<div class="'+(r[0]?"ok":"no")+'">'+(r[0]?"✓":"✕")+' '+r[1]+'</div>'}).join("")}
-function adminRoute(){if(sessionStorage.getItem("lzadm")){adminUI();return}
-var has=localStorage.getItem("lz_pw");app.innerHTML='<div class="lg"><form id="lgf"><h2 class="hs" style="font-size:2rem">LeadzSoft admin</h2><p style="color:var(--muted);margin:10px 0 20px">'+(has?"Enter your admin passcode.":"First time: create an admin passcode (6+ characters).")+'</p><input id="pw" type="password" placeholder="Passcode" autocomplete="off"><button class="btn" type="submit" style="margin-top:12px">'+(has?"Log in":"Create passcode")+'</button><p id="lm" style="color:#c0392b;margin-top:12px"></p><p style="font-size:12px;color:var(--muted);margin-top:16px">Preview only: this passcode and your edits live in this browser. Real security needs a server login.</p></form></div>';
-$("#lgf").onsubmit=async function(e){e.preventDefault();var v=$("#pw").value,h;try{h=await sha(v)}catch(x){h=btoa(v)}
-if(!has){if(v.length<6){$("#lm").textContent="Use at least 6 characters.";return}localStorage.setItem("lz_pw",h)}else if(h!=has){$("#lm").textContent="Wrong passcode.";return}
-sessionStorage.setItem("lzadm","1");adminUI()}}
+function adminRoute(){var tk=sessionStorage.getItem("lzadm");
+function form(msg){app.innerHTML='<div class="lg"><form id="lgf"><h2 class="hs" style="font-size:2rem">LeadzSoft admin</h2><p style="color:var(--muted);margin:10px 0 20px">Log in to manage your website.</p><input id="un" placeholder="Username" autocomplete="username"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" style="margin-top:10px"><button class="btn" type="submit" style="margin-top:12px">Log in</button><p id="lm" style="color:#c0392b;margin-top:12px"></p></form></div>';
+$("#lm").textContent=msg||"";
+$("#lgf").onsubmit=async function(e){e.preventDefault();var lm=$("#lm");lm.textContent="Checking...";try{var r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({u:$("#un").value,p:$("#pw").value})});var j=await r.json();if(!r.ok||!j.token){lm.textContent=j.error||"Login failed.";return}sessionStorage.setItem("lzadm",j.token);adminUI()}catch(x){lm.textContent="Cannot reach the login server. Deploy on Vercel with the api folder."}}}
+if(!tk){form();return}
+fetch("/api/login",{headers:{Authorization:"Bearer "+tk}}).then(function(r){if(r.ok)adminUI();else{sessionStorage.removeItem("lzadm");form("Session expired. Please log in again.")}}).catch(function(){sessionStorage.removeItem("lzadm");form()})}
 async function sha(s){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 function adminUI(){var G=[["Pages","page"],["Services","service"],["Industries","industry"],["Blog posts","post"],["Legal","legal"]];
 var side='<div class="abh">LeadzSoft CMS</div><button class="ai'+(AD.sel=="site"?" on":"")+'" data-sel="site">⚙ Site, header &amp; footer</button>'+G.map(function(g){return '<div class="ag">'+g[0]+'</div>'+pgs(g[1]).map(function(p){return '<button class="ai'+(AD.sel==p.id?" on":"")+'" data-sel="'+p.id+'">'+esc(p.nav||p.title)+'</button>'}).join("")}).join("")+'<div class="ag">Tools</div><button class="ai" data-act="newp">+ New page</button><button class="ai" data-act="export">Export JSON</button><button class="ai" data-act="import">Import JSON</button><button class="ai" data-act="reset">Reset to defaults</button><a class="ai" href="#/">← View website</a><button class="ai" data-act="logout">Log out</button>';
@@ -364,7 +365,7 @@ if(d.f)document.execCommand("formatBlock",false,d.f);else if(d.c=="ext"){var u=b
 if(d.sel){AD.sel=d.sel;AD.tab="c";adminUI();return}if(d.tab){AD.tab=d.tab;editor();return}
 var a=d.act;if(!a)return;var r=root();
 var conf=function(){if(t.dataset.c){return true}t.dataset.c=1;var o=t.textContent;t.textContent="Sure?";setTimeout(function(){t.textContent=o;delete t.dataset.c},2500);return false};
-if(a=="logout"){sessionStorage.removeItem("lzadm");location.hash="#/";return}
+if(a=="logout"){sessionStorage.removeItem("lzadm");nav("/");return}
 if(a=="reset"){if(!conf())return;localStorage.removeItem("lz_cms");DB=seed();save();AD.sel="site";adminUI();return}
 if(a=="export"||a=="import"){var m=document.createElement("div");m.className="md";m.innerHTML='<div class="mdb"><h3>'+(a=="export"?"Export (copy this JSON)":"Import (paste JSON)")+'</h3><textarea id="mj" rows="14">'+(a=="export"?esc(JSON.stringify(DB)):"")+'</textarea><div class="ac2"><button class="ad" data-act="'+(a=="export"?"mclose":"mapply")+'">'+(a=="export"?"Close":"Apply import")+'</button>'+(a=="import"?'<button class="ad" data-act="mclose">Cancel</button>':"")+'</div><p id="mm"></p></div>';document.body.appendChild(m);if(a=="export")$("#mj").select();return}
 if(a=="mclose"){t.closest(".md").remove();return}
@@ -385,5 +386,12 @@ var arr=gp(r,p);
 if(a=="add"){if(!arr){sp(r,p,[]);arr=gp(r,p)}if(d.s)arr.push("");else{var o={};d.keys.split(",").forEach(function(k){o[k]=""});arr.push(o)}persist();editor();return}
 if(a=="up"||a=="dn"){var j2=a=="up"?i-1:i+1;if(j2<0||j2>=arr.length)return;var y=arr[i];arr[i]=arr[j2];arr[j2]=y;persist();editor();return}
 if(a=="del"){if(!conf())return;arr.splice(i,1);persist();editor()}});
-DB=load();window.addEventListener("hashchange",go);go();
+DB=load();
+function nav(u){history.pushState(null,"",u);go()}
+function fx(r){[].slice.call(r.querySelectorAll('a[href^="#/"]')).concat(r.matches&&r.matches('a[href^="#/"]')?[r]:[]).forEach(function(a){a.setAttribute("href",a.getAttribute("href").slice(1))})}
+new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType==1)fx(n)})})}).observe(document.body,{childList:true,subtree:true});
+document.addEventListener("click",function(e){if(e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target.closest&&e.target.closest("a[href]");if(!a||a.target||a.hasAttribute("download"))return;var h=a.getAttribute("href");if(h.charAt(0)=="/"&&h.charAt(1)!="/"){e.preventDefault();nav(h)}else if(h.slice(0,2)=="#/"){e.preventDefault();nav(h.slice(1))}});
+window.addEventListener("popstate",go);
+if(location.hash.indexOf("#/")==0)history.replaceState(null,"",location.hash.slice(1));
+go();
 </script></body></html>
